@@ -1,0 +1,72 @@
+{
+  // 保留五个实验运行项。Windows 需安装 MSYS2 UCRT64 的 mingw-w64-ucrt-x86_64-gcc（含 winpthreads），并将 C:\msys64\ucrt64\bin 加入 PATH；MSVC 不含 pthread.h。
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "运行 1：竞态演示（⇧⌘B 默认跑这个）",
+      "detail": "task1_race.cpp —— Pthreads 无锁共享计数，观察丢失更新",
+      "type": "shell",
+      "command": "g++ -std=c++11 -O2 -Wall -Wextra -pthread task1_race.cpp -o task1_race && ./task1_race",
+      "windows": {
+        "command": "powershell",
+        "args": ["-NoProfile", "-Command", "g++ -std=c++11 -O2 -Wall -Wextra -pthread task1_race.cpp -o task1_race.exe; if ($LASTEXITCODE -eq 0) { .\\task1_race.exe }"]
+      },
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": "$gcc",
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "focus": true }
+    },
+    {
+      "label": "运行 2：加锁对照",
+      "detail": "task1_race.cpp --fix —— Pthread mutex 保护共享计数",
+      "type": "shell",
+      "command": "g++ -std=c++11 -O2 -Wall -Wextra -pthread task1_race.cpp -o task1_race && ./task1_race --fix",
+      "windows": {
+        "command": "powershell",
+        "args": ["-NoProfile", "-Command", "g++ -std=c++11 -O2 -Wall -Wextra -pthread task1_race.cpp -o task1_race.exe; if ($LASTEXITCODE -eq 0) { .\\task1_race.exe --fix }"]
+      },
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": "$gcc",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "focus": true }
+    },
+    {
+      "label": "运行 3：子线程求和",
+      "detail": "task1_sum.cpp —— Pthreads 子线程计算后由主线程等待",
+      "type": "shell",
+      "command": "g++ -std=c++11 -O2 -Wall -Wextra -pthread task1_sum.cpp -o task1_sum && ./task1_sum 1000000",
+      "windows": {
+        "command": "powershell",
+        "args": ["-NoProfile", "-Command", "g++ -std=c++11 -O2 -Wall -Wextra -pthread task1_sum.cpp -o task1_sum.exe; if ($LASTEXITCODE -eq 0) { .\\task1_sum.exe 1000000 }"]
+      },
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": "$gcc",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "focus": true }
+    },
+    {
+      "label": "运行 4：单词统计",
+      "detail": "task2_wordcount.cpp —— 信号量 P/V 互斥统计两个文件",
+      "type": "shell",
+      "command": "g++ -std=c++11 -O2 -Wall -Wextra -pthread task2_wordcount.cpp -o task2_wordcount && ./task2_wordcount essay_a.txt essay_b.txt",
+      "windows": {
+        "command": "powershell",
+        "args": ["-NoProfile", "-Command", "g++ -std=c++11 -O2 -Wall -Wextra -pthread task2_wordcount.cpp -o task2_wordcount.exe; if ($LASTEXITCODE -eq 0) { .\\task2_wordcount.exe essay_a.txt essay_b.txt }"]
+      },
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": "$gcc",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "focus": true }
+    },
+    {
+      "label": "运行 5：单词统计（解法二）",
+      "detail": "task2_wordcount_v2.cpp —— 线程独立统计并通过返回值由主线程汇总",
+      "type": "shell",
+      "command": "g++ -std=c++11 -O2 -Wall -Wextra -pthread task2_wordcount_v2.cpp -o task2_wordcount_v2 && ./task2_wordcount_v2 essay_a.txt essay_b.txt",
+      "windows": {
+        "command": "powershell",
+        "args": ["-NoProfile", "-Command", "g++ -std=c++11 -O2 -Wall -Wextra -pthread task2_wordcount_v2.cpp -o task2_wordcount_v2.exe; if ($LASTEXITCODE -eq 0) { .\\task2_wordcount_v2.exe essay_a.txt essay_b.txt }"]
+      },
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": "$gcc",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "focus": true }
+    }
+  ]
+}

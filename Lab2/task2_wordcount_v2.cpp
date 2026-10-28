@@ -1,122 +1,107 @@
+// task2_wordcount_v2.cpp：每个 Pthreads 线程独立统计一个文件，通过线程返回值交给主线程汇总。
+// macOS 编译：clang++ -std=c++11 -Wall -Wextra -pthread task2_wordcount_v2.cpp -o task2_wordcount_v2
+// Windows 编译：g++ -std=c++11 -Wall -Wextra -pthread task2_wordcount_v2.cpp -o task2_wordcount_v2.exe（MSYS2 UCRT64）
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cctype>
 #include <pthread.h>
-#include <ctype.h>
 #include <string>
 
-// 保存每个文件的统计信息
-struct buf {
-    const char *filename;
-    int wc_count;
+// 一个任务结构体保存文件名、线程统计结果和读取状态。
+struct FileTask {
+    const char* filename;
+    int wordCount;
     bool success;
 };
 
-buf args[2];
+FileTask tasks[2];  // 主线程创建线程前填好任务，线程各自只更新自己的结构体。
 
-// 判断是否为字母或数字
+// 只把字母和数字视为单词字符，并安全处理 cctype 的参数范围。
 bool letter(int c) {
-    return c != EOF && isalnum((unsigned char)c);
+    return c != EOF && std::isalnum(static_cast<unsigned char>(c)) != 0;
 }
 
-// 子线程：统计一个文件的单词数量
-void *count_words(void *arg) {
-    buf *ptr = (buf *)arg;
-    FILE *fp = fopen(ptr->filename, "r");
-
-    if (fp == NULL) {
-        perror(ptr->filename);
-        pthread_exit(&ptr->wc_count);
+// 子线程独立统计一个文件，并将结构体中计数地址作为 pthread_join 返回值。
+void* countWords(void* arg) {
+    FileTask* task = static_cast<FileTask*>(arg);
+    FILE* file = std::fopen(task->filename, "r");
+    if (file == nullptr) {
+        std::perror(task->filename);
+        return &task->wordCount;  // 仍返回有效地址；success=false 通知主线程本次失败。
     }
 
-    int c, prev = 0;
-
-    while ((c = fgetc(fp)) != EOF) {
-        if (!letter(c) && letter(prev)) {
-            ptr->wc_count++;
+    int current;
+    int previous = 0;
+    while ((current = std::fgetc(file)) != EOF) {
+        if (!letter(current) && letter(previous)) {
+            ++task->wordCount;
         }
-        prev = c;
+        previous = current;
+    }
+    if (letter(previous)) {
+        ++task->wordCount;  // 文件末尾没有分隔符时补计最后一个词。
     }
 
-    // 处理文件末尾没有分隔符的单词
-    if (letter(prev)) {
-        ptr->wc_count++;
-    }
-
-    fclose(fp);
-    ptr->success = true;
-
-    // 返回本线程的统计结果
-    pthread_exit(&ptr->wc_count);
+    std::fclose(file);
+    task->success = true;
+    return &task->wordCount;  // 线程返回自己的统计结果，不访问共享总数。
 }
 
-// 可视化：绘制横向条形图
-void bar(const std::string& name, int value, int max) {
-    int filled = (max > 0) ? value * 28 / max : 0;
+// 输出按总量缩放的字符条形图，显示两个文件各自的贡献。
+void bar(const std::string& name, int value, int maxValue) {
+    int filled = maxValue > 0 ? value * 28 / maxValue : 0;
     if (filled > 28) filled = 28;
 
-    std::string s;
+    std::string blocks;
     for (int i = 0; i < 28; ++i) {
-        s += (i < filled ? "█" : "░");
+        blocks += (i < filled ? "#" : "-");
     }
-
-    printf("  %s %s %d\n", name.c_str(), s.c_str(), value);
+    std::printf("  %s %s %d\n", name.c_str(), blocks.c_str(), value);
 }
 
-int main(int argc, char *argv[]) {
+// 主线程创建两个统计线程，join 取回指针后做汇总并展示结果。
+int main(int argc, char* argv[]) {
     if (argc != 3) {
-        printf("用法: %s 文件1 文件2\n", argv[0]);
+        std::printf("用法: %s 文件1 文件2\n", argv[0]);
         return 1;
     }
 
-    args[0] = {argv[1], 0, false};
-    args[1] = {argv[2], 0, false};
+    tasks[0] = {argv[1], 0, false};
+    tasks[1] = {argv[2], 0, false};
+    pthread_t threads[2];
 
-    pthread_t t1, t2;
-
-    // 创建两个线程
-    if (pthread_create(&t1, NULL, count_words, &args[0]) != 0) {
-        printf("线程1创建失败\n");
+    if (pthread_create(&threads[0], nullptr, countWords, &tasks[0]) != 0) {
+        std::printf("线程1创建失败\n");
+        return 1;
+    }
+    if (pthread_create(&threads[1], nullptr, countWords, &tasks[1]) != 0) {
+        std::printf("线程2创建失败\n");
+        pthread_join(threads[0], nullptr);  // 创建第二个线程失败时也要回收第一个线程。
         return 1;
     }
 
-    if (pthread_create(&t2, NULL, count_words, &args[1]) != 0) {
-        printf("线程2创建失败\n");
-        pthread_join(t1, NULL);
+    void* result1 = nullptr;
+    void* result2 = nullptr;
+    pthread_join(threads[0], &result1);  // join 等待线程结束，并取回线程返回的计数地址。
+    pthread_join(threads[1], &result2);
+    if (!tasks[0].success || !tasks[1].success || result1 == nullptr || result2 == nullptr) {
+        std::printf("文件读取失败\n");
         return 1;
     }
 
-    void *result1 = NULL;
-    void *result2 = NULL;
+    int count1 = *static_cast<int*>(result1);
+    int count2 = *static_cast<int*>(result2);
+    int total = count1 + count2;  // 只有主线程在这里汇总，因此不需要互斥锁。
 
-    // 等待线程结束并接收统计结果
-    pthread_join(t1, &result1);
-    pthread_join(t2, &result2);
-
-    if (!args[0].success || !args[1].success) {
-        printf("文件读取失败\n");
-        return 1;
-    }
-
-    int count1 = *(int *)result1;
-    int count2 = *(int *)result2;
-
-    // 主线程汇总结果
-    int total = count1 + count2;
-
-    // 输出可视化结果
-    printf("\n===== 解法二：线程独立统计 =====\n\n");
-
+    std::printf("\n===== 解法二：线程独立统计 =====\n\n");
     char pad1[64], pad2[64];
-    snprintf(pad1, sizeof pad1, "%-12s", argv[1]);
-    snprintf(pad2, sizeof pad2, "%-12s", argv[2]);
-
+    std::snprintf(pad1, sizeof(pad1), "%-12s", argv[1]);
+    std::snprintf(pad2, sizeof(pad2), "%-12s", argv[2]);
     bar(pad1, count1, total);
     bar(pad2, count2, total);
     bar("总计        ", total, total);
-
-    printf("\n两个线程已完成，主线程汇总结果。\n");
-    printf("总单词数：%d\n", total);
-
+    std::printf("\n两个线程已完成，主线程汇总结果。\n");
+    std::printf("总单词数：%d\n", total);
     return 0;
 }

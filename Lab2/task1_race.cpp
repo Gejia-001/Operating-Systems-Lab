@@ -1,77 +1,84 @@
-// task1_race.cpp —— 两个线程各把 counter 加 1 一千万次，看最后少了多少
-// 编译: g++ -std=c++20 -O2 -pthread task1_race.cpp -o task1_race
-// 运行: ./task1_race           不加锁，结果会少
-//       ./task1_race --fix     加锁，结果正好
+// task1_race.cpp：两个 Pthreads 线程同时累加共享计数器，比较竞态和互斥锁。
+// macOS 编译：clang++ -std=c++11 -O2 -Wall -Wextra -pthread task1_race.cpp -o task1_race
+// Windows 编译：g++ -std=c++11 -O2 -Wall -Wextra -pthread task1_race.cpp -o task1_race.exe（MSYS2 UCRT64）
 
+#include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <mutex>
+#include <pthread.h>
 #include <string>
-#include <thread>
 
-#ifdef _WIN32
-#  include <windows.h>
-#endif
+// 两个线程共享原子计数器；分开的原子读写仍会产生丢失更新，但不会引入 C++ 数据竞争。
+std::atomic<int> counter(0);
+pthread_mutex_t counterMutex = PTHREAD_MUTEX_INITIALIZER;  // 加锁分支保护临界区。
+bool useLock = false;
+long long rounds = 10000000;
 
-volatile int counter = 0;       // 两个线程共享的计数器
-std::mutex   m;                 // 互斥锁，保护 counter
-bool         useLock = false;   // 是否走加锁分支
-long long    rounds  = 10000000; // 每个线程加多少次
-
-// 线程函数：循环累加
-void work() {
+// 线程入口：按选择执行有锁或无锁的共享计数器更新。
+void* work(void*) {
     for (long long i = 0; i < rounds; ++i) {
         if (useLock) {
-            std::lock_guard<std::mutex> lock(m);   // 进临界区，离开作用域自动解锁
-            counter = counter + 1;                 // C++20 起对 volatile 变量用 ++ 会告警，写成加法
+            pthread_mutex_lock(&counterMutex);  // Pthread mutex 将读、加、写作为一个临界区。
+            counter.fetch_add(1, std::memory_order_relaxed);
+            pthread_mutex_unlock(&counterMutex);
         } else {
-            counter = counter + 1;   // 读-加-写三步，中途可能被另一个线程插进来
+            int oldValue = counter.load(std::memory_order_relaxed);
+            counter.store(oldValue + 1, std::memory_order_relaxed);  // 分开的原子读写间可插入另一线程更新。
         }
     }
+    return nullptr;
 }
 
-// 画一条横向的对比条
-void bar(const char* name, long long value, long long max) {
-    int filled = (int)(value * 20 / max);
+// 把数值换算成固定宽度的字符条形图，方便对照期望值和实际值。
+void bar(const char* name, long long value, long long maxValue) {
+    int filled = maxValue > 0 ? static_cast<int>(value * 20 / maxValue) : 0;
+    if (filled < 0) filled = 0;
     if (filled > 20) filled = 20;
 
-    std::string s;
-    for (int i = 0; i < 20; ++i) s += (i < filled ? "█" : "░");
-    printf("  %s  %s %lld\n", name, s.c_str(), value);
+    std::string blocks;
+    for (int i = 0; i < 20; ++i) {
+        blocks += (i < filled ? "#" : "-");  // 用 ASCII 图形避免不同终端的字符宽度差异。
+    }
+    std::printf("  %s  %s %lld\n", name, blocks.c_str(), value);
 }
 
+// 主线程读取运行模式，启动两个工作线程并在 join 后展示最终比较。
 int main(int argc, char* argv[]) {
-#ifdef _WIN32
-    SetConsoleOutputCP(CP_UTF8);
-#endif
-
-    for (int i = 1; i < argc; ++i) {        // 解析参数：--fix 开关 + 可选的次数
-        if (strcmp(argv[i], "--fix") == 0) useLock = true;
-        else rounds = atoll(argv[i]);
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--fix") == 0) useLock = true;
+        else rounds = std::atoll(argv[i]);  // 可选参数用于缩短或加长实验。
     }
 
-    long long expect = rounds * 2;
-    printf("模式: %s   每个线程加 %lld 次   期望结果 %lld\n",
-           useLock ? "加锁(正确)" : "不加锁(有竞态)", rounds, expect);
+    long long expected = rounds * 2;
+    std::printf("模式: %s   每个线程加 %lld 次   期望结果 %lld\n",
+                useLock ? "加锁(正确)" : "不加锁(有竞态)", rounds, expected);
 
-    auto start = std::chrono::steady_clock::now();
-
-    std::thread a(work);            // 两个线程同时跑同一个函数
-    std::thread b(work);
-    a.join();                       // 两个都等完再读结果
-    b.join();
+    auto start = std::chrono::steady_clock::now();  // 只计两线程运行区间的耗时。
+    pthread_t first, second;
+    if (pthread_create(&first, nullptr, work, nullptr) != 0) {
+        std::printf("线程1创建失败\n");
+        return 1;
+    }
+    if (pthread_create(&second, nullptr, work, nullptr) != 0) {
+        std::printf("线程2创建失败\n");
+        pthread_join(first, nullptr);
+        return 1;
+    }
+    pthread_join(first, nullptr);   // 两次 join 后主线程才读取共享计数器。
+    pthread_join(second, nullptr);
 
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                  std::chrono::steady_clock::now() - start).count();
+        std::chrono::steady_clock::now() - start).count();
+    int actual = counter.load(std::memory_order_relaxed);
+    std::printf("\n结果 counter = %d   耗时 %lld ms\n\n", actual, static_cast<long long>(ms));
+    bar("期望", expected, expected);
+    bar("实际", actual, expected);
+    bar("丢失", expected - actual, expected);
+    std::printf("\n  %s\n", actual == expected ? "结果正确：一次也没丢"
+                                                   : "结果偏小：这就是竞态，属预期现象");
 
-    printf("\n结果 counter = %d   耗时 %lld ms\n\n", counter, (long long)ms);
-    bar("期望", expect,         expect);
-    bar("实际", counter,        expect);
-    bar("丢失", expect - counter, expect);
-
-    printf("\n  %s\n", (counter == expect) ? "结果正确：一次也没丢"
-                                          : "结果偏小：这就是竞态，属预期现象");
-    return 0;               // 演示程序始终返回 0，免得 VS Code 把它标成"任务失败"
+    pthread_mutex_destroy(&counterMutex);  // 释放已不再使用的互斥锁资源。
+    return 0;
 }
