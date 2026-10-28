@@ -19,7 +19,7 @@ winget install --id MSYS2.MSYS2 --exact
 安装完成后，关闭并重新打开 PowerShell，再用命令打开 **MSYS2 UCRT64**：
 
 ```powershell
-& "C:\\msys64\\ucrt64.exe"
+& "C:\msys64\ucrt64.exe"
 ```
 
 在新开的 UCRT64 窗口运行：
