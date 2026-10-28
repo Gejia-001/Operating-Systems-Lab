@@ -42,7 +42,7 @@ clang++ --version
 pacman -S mingw-w64-ucrt-x86_64-gcc
 ```
 
-安装后，将 `C:\\msys64\\ucrt64\\bin` 加入 Windows 的 `PATH`，然后重启 VS Code。这样 VS Code 的 PowerShell 任务能找到 `g++`，程序运行时也能找到 winpthreads 的 DLL。若 MSYS2 安装在别的位置，请将上面的路径换成实际安装路径。
+安装后，将 `C:\msys64\ucrt64\bin` 加入 Windows 的 `PATH`，然后重启 VS Code。这样 VS Code 的 PowerShell 任务能找到 `g++`，程序运行时也能找到 winpthreads 的 DLL。若 MSYS2 安装在别的位置，请将上面的路径换成实际安装路径。
 
 ## 手动编译和运行
 
@@ -71,17 +71,17 @@ clang++ -std=c++11 -O2 -Wall -Wextra -pthread task2_wordcount_v2.cpp -o task2_wo
 
 ```powershell
 g++ -std=c++11 -O2 -Wall -Wextra -pthread task1_sum.cpp -o task1_sum.exe
-.\\task1_sum.exe 1000000
+.\task1_sum.exe 1000000
 
 g++ -std=c++11 -O2 -Wall -Wextra -pthread task1_race.cpp -o task1_race.exe
-.\\task1_race.exe
-.\\task1_race.exe --fix
+.\task1_race.exe
+.\task1_race.exe --fix
 
 g++ -std=c++11 -O2 -Wall -Wextra -pthread task2_wordcount.cpp -o task2_wordcount.exe
-.\\task2_wordcount.exe essay_a.txt essay_b.txt
+.\task2_wordcount.exe essay_a.txt essay_b.txt
 
 g++ -std=c++11 -O2 -Wall -Wextra -pthread task2_wordcount_v2.cpp -o task2_wordcount_v2.exe
-.\\task2_wordcount_v2.exe essay_a.txt essay_b.txt
+.\task2_wordcount_v2.exe essay_a.txt essay_b.txt
 ```
 
 编译参数 `-pthread` 用于启用 Pthreads 支持；`-std=c++11` 指定本实验使用的 C++ 标准。
@@ -112,5 +112,5 @@ VS Code 的工作区任务配置说明：[Integrate with External Tools via Task
 1. 竞态示例的结果受线程调度影响；无锁时不保证每次都丢计数，加锁后应等于期望值。
 2. 两个 essay 文件必须和程序在同一目录，或在运行命令中提供正确的文件路径；找不到文件时先检查 VS Code 是否打开了 `Lab2` 文件夹。
 3. macOS 的信号量通过 `sem_open` 创建并在程序结束时清理，避免直接调用不受支持的 `sem_init`。
-4. Windows 若提示找不到 `g++` 或 winpthreads DLL，检查 MSYS2 的 `ucrt64\\bin` 是否已加入 `PATH`，并重启 VS Code。
+4. Windows 若提示找不到 `g++` 或 winpthreads DLL，检查 MSYS2 的 `ucrt64\bin` 是否已加入 `PATH`，并重启 VS Code。
 5. 条形图使用 `#` 和 `-` 字符，降低不同终端的字体宽度和编码差异。
