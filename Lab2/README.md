@@ -1,50 +1,72 @@
-# Lab2：从零开始运行
+# Lab2：复制命令运行
 
-## 1. 安装 VS Code 和 C++ 编译器
+## 1. 安装环境（只需一次）
 
-先安装 [Visual Studio Code](https://code.visualstudio.com/download)，再在扩展商店安装 Microsoft 的 **C/C++** 扩展。扩展提供代码提示，编译器需要另外安装。
+macOS：先安装 [VS Code](https://code.visualstudio.com/download)，再打开“终端”运行：
 
-- **macOS：**打开“终端”，运行 `xcode-select --install` 安装 Apple 命令行工具。已经安装过可跳过。
-- **Windows：**安装 [MSYS2](https://www.msys2.org/)，打开 **UCRT64** 终端，运行：
-
-  ```sh
-  pacman -S --needed base-devel mingw-w64-ucrt-x86_64-toolchain
-  ```
-
-  安装后把 `C:\msys64\ucrt64\bin` 加入 Windows 的 `PATH`，再重启 VS Code。若安装目录不同，请使用自己的路径。此实验需要 Pthreads，Windows 请用 MSYS2 GCC，不要用 MSVC。
-
-## 2. 下载并打开实验文件夹
-
-在 [GitHub 仓库](https://github.com/Gejia-001/Operating-Systems-Lab)点 **Code → Download ZIP**，解压后，在 VS Code 中选择 **File → Open Folder…**，打开里面的 `Lab2` 文件夹。
-
-目录中已经附带 VS Code 任务配置，不用自己创建：
-
-```text
-Lab2/
-├── .vscode/tasks.json
-├── essay_a.txt
-├── essay_b.txt
-├── task1_sum.cpp
-├── task1_race.cpp
-├── task2_wordcount.cpp
-└── task2_wordcount_v2.cpp
+```sh
+xcode-select --install
 ```
 
-## 3. 选择任务运行
+Windows PowerShell（安装 VS Code、Git、MSYS2）：
 
-在 VS Code 菜单点 **Terminal → Run Task…**，选择要运行的项目。每个任务都会先编译，再运行：
+```powershell
+winget install --id Microsoft.VisualStudioCode --exact
+winget install --id Git.Git --exact
+winget install --id MSYS2.MSYS2 --exact
+```
 
-1. 竞态演示（默认任务）
-2. 加锁对照
-3. 子线程求和
-4. 单词统计（信号量解法）
-5. 单词统计（线程返回值解法）
+安装完成后，打开 **MSYS2 UCRT64** 终端，安装 GCC 和 Pthreads：
 
-快捷运行默认任务：macOS 按 **⇧⌘B**；Windows 按 **Ctrl+Shift+B**。
+```sh
+pacman -S --needed base-devel mingw-w64-ucrt-x86_64-toolchain
+```
 
-## 注意事项
+## 2. 下载项目并用 VS Code 打开
 
-- 必须打开整个 `Lab2` 文件夹；单独打开某个 `.cpp` 文件时，任务和文本文件路径可能无法正常工作。
-- Windows 若提示找不到 `g++`，检查 `PATH` 是否包含 MSYS2 的 `ucrt64\bin`，然后重启 VS Code。
-- 无锁竞态的结果每次可能不同；加锁版本应得到正确总数。
-- 可执行文件由任务在本机生成，仓库里不放二进制文件。
+macOS 终端：
+
+```sh
+git clone https://github.com/Gejia-001/Operating-Systems-Lab.git
+cd Operating-Systems-Lab/Lab2
+open -a "Visual Studio Code" .
+```
+
+Windows PowerShell：
+
+```powershell
+git clone https://github.com/Gejia-001/Operating-Systems-Lab.git
+cd Operating-Systems-Lab\Lab2
+$env:Path = "C:\msys64\ucrt64\bin;$env:Path"
+code .
+```
+
+## 3. 在 VS Code 终端编译并运行
+
+先确认终端当前目录是 `Lab2`。
+
+macOS（Apple Clang）：
+
+```sh
+clang++ -std=c++11 -O2 -Wall -Wextra -pthread task1_sum.cpp -o task1_sum && ./task1_sum 1000000
+clang++ -std=c++11 -O2 -Wall -Wextra -pthread task1_race.cpp -o task1_race && ./task1_race && ./task1_race --fix
+clang++ -std=c++11 -O2 -Wall -Wextra -pthread task2_wordcount.cpp -o task2_wordcount && ./task2_wordcount essay_a.txt essay_b.txt
+clang++ -std=c++11 -O2 -Wall -Wextra -pthread task2_wordcount_v2.cpp -o task2_wordcount_v2 && ./task2_wordcount_v2 essay_a.txt essay_b.txt
+```
+
+Windows PowerShell（MSYS2 GCC）：
+
+```powershell
+g++ -std=c++11 -O2 -Wall -Wextra -pthread task1_sum.cpp -o task1_sum.exe; if ($LASTEXITCODE -eq 0) { .\task1_sum.exe 1000000 }
+g++ -std=c++11 -O2 -Wall -Wextra -pthread task1_race.cpp -o task1_race.exe; if ($LASTEXITCODE -eq 0) { .\task1_race.exe; .\task1_race.exe --fix }
+g++ -std=c++11 -O2 -Wall -Wextra -pthread task2_wordcount.cpp -o task2_wordcount.exe; if ($LASTEXITCODE -eq 0) { .\task2_wordcount.exe essay_a.txt essay_b.txt }
+g++ -std=c++11 -O2 -Wall -Wextra -pthread task2_wordcount_v2.cpp -o task2_wordcount_v2.exe; if ($LASTEXITCODE -eq 0) { .\task2_wordcount_v2.exe essay_a.txt essay_b.txt }
+```
+
+## 也可以点菜单运行
+
+`.vscode/tasks.json` 已经配置好，不用生成。选择 **Terminal → Run Task…**，再点“运行 1–5”中的一项；任务会自动编译并运行。
+
+- 一定要打开整个 `Lab2` 文件夹，否则可能找不到 `essay_a.txt` 和 `essay_b.txt`。
+- 无锁竞态结果可能每次不同；加锁版本结果应正确。
+- 编译生成的可执行文件只在本机产生，不提交到仓库。
