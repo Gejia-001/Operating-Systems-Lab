@@ -1,0 +1,45 @@
+
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "实验8：编译并运行（100件）",
+      "type": "shell",
+      "command": "g++ -std=c++17 -O0 -g -Wall -Wextra -pthread main.cpp producer_consumer.cpp visualization.cpp -o experiment8 && ./experiment8 100",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "osx": {
+        "command": "clang++ -std=c++17 -O0 -g -Wall -Wextra -pthread main.cpp producer_consumer.cpp visualization.cpp -o experiment8 && ./experiment8 100"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$gcc"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "实验8：编译并运行（120件）",
+      "type": "shell",
+      "command": "g++ -std=c++17 -O0 -g -Wall -Wextra -pthread main.cpp producer_consumer.cpp visualization.cpp -o experiment8 && ./experiment8 120",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "osx": {
+        "command": "clang++ -std=c++17 -O0 -g -Wall -Wextra -pthread main.cpp producer_consumer.cpp visualization.cpp -o experiment8 && ./experiment8 120"
+      },
+      "group": "build",
+      "problemMatcher": ["$gcc"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    }
+  ]
+}
